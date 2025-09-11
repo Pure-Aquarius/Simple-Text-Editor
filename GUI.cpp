@@ -19,18 +19,18 @@ int main() {
             Editor_Window(int w, int h, const char *title);
             ~Editor_Window();
 
-            Fl_Window *replace_dlg;     //actual winodow
-            Fl_Input *replace_find;     //text input that specifies what to search for
+            Fl_Window *replace_window;     //actual winodow
+            Fl_Input *search_text_to_replace;     //text input that specifies what to search for
             Fl_Input *replace_with;     //text input specifying what to replace with
             Fl_Button *replace_all;     //button to replace all occurences
             Fl_Return_Button *replace_next;     //button to replace next occurence
-            Fl_Button *replace_cancel;      //cancel replace operation
+            Fl_Button *cancel_replace;      //cancel replace operation
 
             Fl_Text_Editor *text_editor;        //main are for text editing
             char search [256];
     };
 
-    
+
 
 }
 
