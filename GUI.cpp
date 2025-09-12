@@ -18,6 +18,7 @@ Fl_Text_Buffer *textbuf;    //buffer to hold text being edited
 
 int main() {
 
+    """Creating a Custom Window Class with a basic layout for Text Editing and Search/Replace Functionality"""
     class Editor_Window : public Fl_Double_Window 
     {
         public:
@@ -35,6 +36,8 @@ int main() {
             char search [256];
     };
 
+
+    """Creating a Menu Bar and Adding Menu Items"""
     Fl_Menu_Item menuitems[] = {
 
             Fl_Menu_Item menuitems[] = {
@@ -69,6 +72,16 @@ int main() {
 
     Fl_Menu_Bar *menubar = new Fl_Menu_Bar(0,0, 250, 40);
     menubar->copy(menuitems());
+
+    """Editing the text in the Text Editor(BUFFER)"""
+    w->editor = new Fl_Text_Editor(0, 30, 640, 30);
+    w->editor->buffer(textbuf); //attach text buffer to editor to enable basic editing of text
+
+    text_buf->add_modify_callback(changed_cb, 0); //set callback to monitor changes to text buffer
+    textbuf->call_modify_callbacks(); //call modify callback to initialize changed flag
+
+    w->editor->textfont(FL_COURIER); //set font to fixed width for better alignment
+    w->editor->textsize(14); //set text size
 
 }
 
