@@ -83,6 +83,75 @@ int main() {
     w->editor->textfont(FL_COURIER); //set font to fixed width for better alignment
     w->editor->textsize(14); //set text size
 
+    """Creating a search/replace dialog-box/window"""
+    Fl_Window *replace_window = new Fl_Winodw(300, 105, "Replace");
+    Fl_Input *search_text_to_replace = new Fl_Input(70, 10, 200, 25, "Find");
+    Fl_Input *replace_with = new Fl_Input(70, 45, 200, 25, "Replace");
+    Fl_Button *replace_all = new Fl_Button(10, 70, 90, 25, "Replace All");
+    Fl_Return_Button *return_button =. new Fl_Return_Button(110, 70, 90, 25, "Replace Next");
+    Fl_Button *cancel_replace - new Fl_Button(210, 70, 90, 25, "Cancel");
+
+    """Defining all the necessary callback functions for the menuitems and buttons"""
+
+    //Callback function that handles changes in the text buffer
+    void changed_cb(int, int nInserted, int nDeleted, int, const char*, void* v)
+    {
+        """
+         This Callback function is triggered when text buffer content is modified i.e when the text is edited
+          
+          @param ignored1     Unused parameter (required by FLTK callback signature)
+          @param nInserted    Number of characters inserted in the buffer
+          @param nDeleted     Number of characters deleted from the buffer
+          @param ignored2     Unused parameter (required by FLTK callback signature)
+          @param ignored3     Unused parameter (required by FLTK callback signature)
+          @param v           Pointer to the Editor_Window instance (void* for FLTK compatibility)
+          
+           This callback function is triggered whenever the text buffer content changes.
+           It performs the following tasks:
+           - Tracks whether the document has unsaved changes
+           - Updates the window title to reflect modification status
+           - Updates cursor position when loading files
+        
+        The function uses a global 'loading' flag to differentiate between user edits
+        and programmatic changes during file loading operations.
+        """
+        if ((nInserted || nDeleted) && !loading)
+            changed = 1;
+        Editor_Window *w = (Editor_Window *)v;  
+        set_title(w);
+        
+        if(loading)
+            w->editor->show_insert_position();
+    }
+
+    void copy_cb(Fl_Widget*, void *v)
+    {
+        Editor_Window *e = (Editor_Window *)v;
+        Fl_text_Editor::kf_copy(0, e->editor);
+    }
+
+    void paste_cb(Fl_Widget*, void *v)
+    {
+        Editor_Window *e = (Editor_Window *)v;
+        Fl_text_Editor::kf_paste(0, e->editor);
+    }
+
+    void cut_cb(Fl_Widget*, void *v)
+    {
+        Editor_Window *e = (Editor_Window *)v;
+        Fl_Text_Editor::kf_cut(0, e->editor);
+    }
+
+    void delete_cb(Fl_Widget*, void *v)
+    {
+        textbuf->remove_selection();
+    }
+
+    void find_cb(Fl_Widget* w, void *v)
+    {
+        
+    }
+
 }
 
 
