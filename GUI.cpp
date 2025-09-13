@@ -127,19 +127,19 @@ int main() {
     void copy_cb(Fl_Widget*, void *v)
     {
         Editor_Window *e = (Editor_Window *)v;
-        Fl_text_Editor::kf_copy(0, e->editor);
+        Fl_text_Editor::kf_copy(0, e->text_editor);
     }
 
     void paste_cb(Fl_Widget*, void *v)
     {
         Editor_Window *e = (Editor_Window *)v;
-        Fl_text_Editor::kf_paste(0, e->editor);
+        Fl_text_Editor::kf_paste(0, e->text_editor);
     }
 
     void cut_cb(Fl_Widget*, void *v)
     {
         Editor_Window *e = (Editor_Window *)v;
-        Fl_Text_Editor::kf_cut(0, e->editor);
+        Fl_Text_Editor::kf_cut(0, e->text_editor);
     }
 
     void delete_cb(Fl_Widget*, void *v)
@@ -149,7 +149,41 @@ int main() {
 
     void find_cb(Fl_Widget* w, void *v)
     {
-        
+        Editor_Window *e = (Editor_window *)v;
+        const char *val;
+        """This callback function asks for a search string using the 
+        fl_input() convenience function and then calls the find2_cb() 
+        function to find the string"""
+
+        val = fl_input("Search string:"/*Prompt shown to user*/, e->search_text_to_replace);    //input dialog box to take input from user for search string
+        if (val !=NULL)
+        {
+            strcpy(e->search_text_to_replace, val); //copy input string to editor window's search buffer
+            find2_cb(w, v);
+        }
+    }
+
+    void find2_cb(Fl_Widget *w, void *v)
+    {
+        Editor_Window *e = (Editor_Window*)v;
+        if(e->search_text_to_replace[0]=='\0')  //if search string is empty, ask user for search string again and return
+        {
+            find_cb(w, v);
+            return;
+        }
+        //else - search string is not NULL
+        int pos = e->text_editor->insert_position(); //get current cursor position in text editor
+        int found_pos = textbuf->search_forward(pos/*start pos to search from*/, e->search_text_to_replace/*text to search for*/, &pos /*pos at which result is stored*/); //search for the string forward from current cursor position
+        if(found_pos>=0)    //valid position found
+        {
+            textbuf->select(pos, pos+strlen(e->search_text_to_replace)); //highlight the found string in text editor
+            e->text_editor->insert_position(pos+strlen(e->search_text_to_replace)); //move cursor to end of found string
+            e->text_editor->show_insert_position(); //ensure cursor is visible
+        }
+        else    //string not found
+        {
+            fl_alert("String '%s' not found", e->search_text_to_replace); //show alert dialog box to user
+        }
     }
 
 }
