@@ -39,8 +39,6 @@ int main() {
 
     """Creating a Menu Bar and Adding Menu Items"""
     Fl_Menu_Item menuitems[] = {
-
-            Fl_Menu_Item menuitems[] = {
         { "&File",              0, 0, 0, FL_SUBMENU },              
             { "&New File",        0, (Fl_Callback *)new_cb },
             { "&Open File...",    FL_COMMAND + 'o', (Fl_Callback *)open_cb },
@@ -97,7 +95,7 @@ int main() {
     void changed_cb(int, int nInserted, int nDeleted, int, const char*, void* v)
     {
         """
-         This Callback function is triggered when text buffer content is modified i.e when the text is edited
+        This Callback function is triggered when text buffer content is modified i.e when the text is edited
           
           @param ignored1     Unused parameter (required by FLTK callback signature)
           @param nInserted    Number of characters inserted in the buffer
@@ -123,30 +121,35 @@ int main() {
         if(loading)
             w->editor->show_insert_position();
     }
-
+    
+    //Callback function to copy selected text to clipboard
     void copy_cb(Fl_Widget*, void *v)
     {
         Editor_Window *e = (Editor_Window *)v;
         Fl_text_Editor::kf_copy(0, e->text_editor);
     }
-
+    
+    //Callback function to paste text from clipboard
     void paste_cb(Fl_Widget*, void *v)
     {
         Editor_Window *e = (Editor_Window *)v;
         Fl_text_Editor::kf_paste(0, e->text_editor);
     }
-
+    
+    //Callback function to cut selected text
     void cut_cb(Fl_Widget*, void *v)
     {
         Editor_Window *e = (Editor_Window *)v;
         Fl_Text_Editor::kf_cut(0, e->text_editor);
     }
-
+    
+    //Callback function to delete selected text
     void delete_cb(Fl_Widget*, void *v)
     {
         textbuf->remove_selection();
     }
-
+    
+    //Callback function to take input of search string
     void find_cb(Fl_Widget* w, void *v)
     {
         Editor_Window *e = (Editor_window *)v;
@@ -162,7 +165,8 @@ int main() {
             find2_cb(w, v);
         }
     }
-
+    
+    //Callback function to find next occurence of search string
     void find2_cb(Fl_Widget *w, void *v)
     {
         Editor_Window *e = (Editor_Window*)v;
@@ -185,7 +189,146 @@ int main() {
             fl_alert("String '%s' not found", e->search_text_to_replace); //show alert dialog box to user
         }
     }
+    
+    //Callback function to handle "New File" menu item
+    void new_cb(Fl_Widget*, void *)
+    {
+        if(!check_save())   //if current file has not been saved
+            return; 
+        //if current file is saved
+        filename[0] = '\0'; //reset filename to empty
+        textbuf->select(0, textbuf->length()); //select all text in buffer
+        textbuf->remove_selection(); //remove all text from buffer
+        changed = 0;    //reset changed flag
+        textbuf->call_modify_callbacks(); //call modify callbacks to update window title
+    }
+    
+    //Callback function to handle "Open File" menu item
+    void open_cb(Fl_Widget*, void*)
+    {
+        if(!check_save())   //if current file has not been saved
+            return;
+        //if current file is saved
+        char *new_file = fl_file_chooser("Open File", "*"/*file-filter param*/, filename); //show file chooser dialog to user to select file to open
+                //new_file will store the full path of the selected file, or NULL if user cancelled the dialog box
+        if(new_file != NULL) //if user selected a non-empty file
+            load_file(new_file, -1); //load the selected file into text buffer
+    }
 
+    //Callback function to handle the Quit menu item
+    void quit_cb(Fl_Widget*, void*)
+    {
+        if(changed && !check_save())    //if current file has not been saved
+            return;
+        //if current file is saved
+        exit(0);    //exit the application    
+    }
+
+    //Callback function to handle "Save File" menu item
+    void save_cb(Fl_Widget*, void*)
+    {
+        if(changed)  //if current file has been changed since last save
+        {
+            if(filename[0] == '\0') //if no name has been assigned to current file
+            {
+                save_as_cb(); //call save-as callback to ask user for file name
+                return;
+            }
+            //if current file has a valid name
+            save_file(filename); //save current file to the assigned filename
+        }
+        //if current file has not been changed since last save, do nothing
+    }
+
+    //Callback function to handle "Save File As" menu item
+    void save_as_cb(Fl_widget*, void*)
+    {
+        char *new_file = fl_file_chooser("Save file as", "*"/*file-filter param*/, filename); //show file chooser dialog to user to name the current file to save as
+                //new_file will store the full path of the newly-named file, or NULL if user cancelled the dialog box
+        if(new_file != NULL)    //if user provided a non-empty file name
+            save_file(new_file); //save current file to the newly-named file
+    }
+
+    //Callback function to handle "Replace" menu item
+    void replace_cb(Fl_widget*, void *v)//only shows the replace dialog box
+    {
+        Editor_Window *e = (Editor_Window *)v;
+        e->replace_window->show(); //show the replace dialogbox
+    }
+
+    //Callback function to replace next immediate [not all] occurence of search string with replace string
+    void replace2_cb(Fl_Widget*, void *v)
+    {
+        Editor_Window *e = (Editor_Window *)v;
+        const char *find = e->search_text_to_replace->value(); //get the search string from the input field
+        const char *replace = e->replace_with->value(); //get the replace string from the input field
+
+        if(find[0] == '\0') //if search string is empty, ask user for search string again and return
+        {
+            find_cb(0, v);
+            return;
+        }
+
+        int pos = e->text_editor->insert_position(); //get current cursor position in text editor
+        int found_pos = textbuf->search_forward(pos/*start pos to search from*/, find/*text to search for*/, &pos /*pos at which result is stored*/); //search for the string forward from current cursor position
+        
+        if(found_pos >= 0)   //valid position found
+        {
+            //replace the found string with the replace string
+            textbuf->select(pos, pos+strlen(find)); //highlight the found string in text editor
+            textbuf->remove_selection(); //remove the found string
+            textbuf->insert(pos, replace); //insert the replace string at the position of the found string
+            e->text_editor->insert_position(pos+strlen(replace)); //move cursor to end of inserted replace string
+            e->text_editor->show_insert_position(); //ensure the cursor is visible after replacement
+            changed = 1;    //set changed flag to indicate that the text has been modified
+            textbuf->call_modify_callbacks(); //call modify callbacks to update window title
+        }
+        else    //string not found
+            fl_alert("String '%s' not found", find); //show alert dialog box to user
+    }
+
+    //Callback function to replace all occurences of search string with replace string
+    void replace_all_cb(Fl_Widget*, void* v)
+    {
+        Editor_Window *e = (Editor_Window *)v;
+        const char *find = e->search_text_to_replace->value(); get the search string from the input field
+        const char *replace = e->replace_with->value(); //get the replace string from the input field
+
+        if(find[0] == '\0') //if search string is empty, ask user for search string again and return
+        {
+            fl_alert("Search string is empty");
+            find_cb(0, v);
+            return;
+        }
+        
+        //if search string is not empty
+        int times_replaces = 0; //counter to track number of replacements made
+        while(true)
+        {
+            int pos = e->text_editor->insert_position(); //get current cursor position in text editor
+            int found_pos = textbuf->search_forward(pos, find, &pos); //search for the string forward from current cursor position
+
+            if(found_pos >=0) //valid position found
+            {
+                textbuf->select(pos, pos+strlen(find)); //highlight the found string in text editor
+                textbuf->remove_selection(); //remove the found string
+                textbuf->insert(pos, replace); //insert the replace string at the position of the found string
+                e->text_editor->insert_position(pos+strlen(replace)); //move cursor to end of inserted replace string
+                e->text_editor->show_insert_position(); //ensure the cursor is visible after replacement
+                changed = 1;    //set changed flag to indicate that the text has been modified
+                textbuf->call_modify_callbacks(); //call modify callbacks to update window title
+                times++; //increment replacement counter after each successful replacement
+            }
+            else    //string not found
+                break;  //exit the loop     
+        }
+        if(times!=0)    //if at least one replacement made
+            fl_message("replaced %d occurences of %s with %s", times, find, replace); //show message dialog to user indicating number of replacements made
+        else    //if no replacements made
+            fl_alert("String %s not found", find); //show alert dialog box to user
+    }
+
+    
 }
 
 
