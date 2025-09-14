@@ -328,7 +328,81 @@ int main() {
             fl_alert("String %s not found", find); //show alert dialog box to user
     }
 
+    //Callback function to cancel the replace operation and hide the replace dialog box
+    void cancel_replace_cb(Fl_Widget*, void *v)
+    {
+        Editor_Window *e = (Editor_Window *)v;
+        e->replace_window->hide(); //hide the replace dialogbox     
+    }
     
+    //Defining support functions for file operations and UI updates
+
+    //Funcction to check if current file has unsaved changes and prompt user to save if needed-->returns 1 is file saved or no changes, 0 if user cancels
+    int check_save()
+    {
+        if(!changed)//if current file has not been changed since last save
+            return 1;   //no need to save, return true
+        
+        //if file has been changed since last save
+        int r = fl_choice("File has not been saved. Do you want to save now? 
+                            \n 1. Save \n 2. Don't Save[Discard] \n 3. Cancel");
+
+        if(r==1) //user chose to save
+        {
+            save_cb(); //call save callback to save current file
+            return !changed; //return true if save was successful (changed flag reset), else false
+        }
+
+        if(r==2) //user chose not to save
+            return 1;   //return true, proceed without saving
+        
+        return 0;   //user chose to cancel, return false
+    }
+    
+    //Function to load the file into the text buffer
+    int loading = 0; //flag to indicate if a file is being loaded (to prevent triggering change callbacks)
+    void load_file(char *newfile, int ipos/*insert position*/)
+    {
+        loading = 1; //set loading flag to true to prevent change callbacks during file load
+        int insert = (ipos != -1); //determine if we are inserting or replacing the buffer content
+        changed= insert; //set changed flag if inserting, else reset if replacing
+
+        int r;
+        if (!insert)    //if not inserting, i.e replacing buffer content
+        {
+            strcpy(filename, ""); //reset filename to empty
+            r = textbuf->loadfile(newfile); //load the file content into the text buffer
+        }
+        else    //if inserting
+            r = textbuf->insertfile(newfile, ipos); //insert the file content at the specified position in the text buffer       
+        
+            
+        if(r)   //if file load/insert failed
+            fl_alert("Error loading file '%s': %s", newfile, strerror(errno)); //show alert dialog to user with error message
+        else    //if file load/insert successful
+        {
+            if(!insert) //if replacing buffer content
+                strcpy(filename, newfile); //update current filename to the loaded file's name
+            set_title((Editor_Window *)this); //update window title to reflect new filename and modification status
+            textbuf->call_modify_callbacks(); //call modify callbacks to update window title    
+        }
+        loading = 0; //reset loading flag after file load/insert operation
+    }
+    
+    //Function to save the text buffer content to the specified file
+    void save_file(char *newfile)
+    {
+        int r = textbuf->savefile(newfile);  //save the tet buffer content to the specified file
+        if(r) //if file save failed
+            fl_alert("Error saving %s: %s", newfile, strerror(errno)); //show alert dialog to user with error message
+        else    //if file save successful
+            strcpy(filename, newfile); //update current filename to the saved file's name
+        changed = 0;   //reset changed flag after successful save
+        textbuf->call_modify_callbacks(); //call modify callbacks to update window title    
+    }
+    
+
+    return 0;        
 }
 
 
