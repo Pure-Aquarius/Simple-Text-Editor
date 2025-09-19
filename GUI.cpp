@@ -71,7 +71,7 @@ class EditorWindow: public Fl_Double_Window
 
 // ========== SUPPORT FUNCTIONS ==========
 
-int check_save(void *v)         //checks if the file has been saved
+int check_save()         //checks if the file has been saved
 {
     if(!changed_flag) return 1; //no changes, so OK to proceed
 
@@ -80,7 +80,7 @@ int check_save(void *v)         //checks if the file has been saved
                            "Save", "Discard Changes", "Cancel");
     if(choice == 1)
     {
-        save_cb(0, v); //save the file
+        save_cb(0, 0); //save the file
         return !changed_flag; //if save was successful, changed_flag will be cleared
     }
     if(choice == 2)
@@ -141,22 +141,22 @@ void set_title(EditorWindow *w)         //set the window title based on current 
 {
     if(!w) return;
 
-    char title[300]; //buffer for the title
-    if(filename[0] == '\0') //if no filename given
-        strcpy(title, "Untitled");  //set title to "Untitled"
+    char title[300];                                //buffer for the title
+    if(filename[0] == '\0')                         //if no filename given
+        strcpy(title, "Untitled");                  //set title to "Untitled"
     else
     {
-        char *slash = strrchr(filename, '/'); //find last '/' in the filename, after which is the actual name of the file
+        char *slash = strrchr(filename, '/');       //find last '/' in the filename, after which is the actual name of the file
         if(slash != nullptr)
-            strcpy(title, slash+1); //copy the actual filename
+            strcpy(title, slash+1);                 //copy the actual filename
         else
-            strcpy(title, filename); //no '/' found, so copy the entire filename
+            strcpy(title, filename);                //no '/' found, so copy the entire filename
     }    
 
-    if(changed_flag)    //if changes have been made to this file
-        strcat(title, " (modified)");     //append " (modified)" to the title
+    if(changed_flag)                                //if changes have been made to this file
+        strcat(title, " (modified)");               //append " (modified)" to the title
     
-    w->copy_label(title); //set the window title    
+    w->copy_label(title);                           //set the window title    
 
 }
 
@@ -164,10 +164,10 @@ void set_title(EditorWindow *w)         //set the window title based on current 
 
 void changed_cb(int, int nInserted, int nDeleted, int, const char*, void* v)          //Called whenever changes are made to the buffer
 {
-    if((nInserted || nDeleted) && !loading) //if something was actually inserted or deleted, and we are not loading a file
-        changed_flag = 1; //set the changed flag
+    if((nInserted || nDeleted) && !loading)     //if something was actually inserted or deleted, and we are not loading a file
+        changed_flag = 1;                       //set the changed flag
     EditorWindow *win = (EditorWindow*)v;
-    set_title(win); //update the window title after every change
+    set_title(win);                             //update the window title after every change
 }
 
 void copy_cb(Fl_Widget*, void* v)      //copy the selected text to the clipboard
@@ -243,9 +243,12 @@ void find2_cb(Fl_Widget*, void *v)
 
 void new_cb(Fl_Widget*, void*)          //callback to handle opening a new file - by emptying the text-buffer for new file
 {
-    if(!check_save(nullptr))
+    if(!check_save())
         return;             //if the currently open file has unsaved changes, then return 
     //else currently open file is saved
+
+    filename[0] = '\0';     //clear the filename
+
     if(textbuf)
     {
         textbuf->select(0, textbuf->length());      //select entire buffer
@@ -256,3 +259,236 @@ void new_cb(Fl_Widget*, void*)          //callback to handle opening a new file 
         textbuf->call_modify_callbacks();           //manually call the modified callback to update the display
 }   
 
+void open_cb(Fl_Widget*, void *v)
+{
+    if(!check_save())
+        return;                 //return if there are unsaved changes in currently-open file before opening another one
+    //else. there are no changes, OK to proceed
+    EditorWindow *win = (EditorWindow *)v;
+    if(!win)    return;         //return if window doesn't exist
+
+    char *newfile = fl_file_chooser("Open File", "*", filename);        //select a filename
+    if(newfile!= NULL)
+        load_file(win, newfile, -1);
+}
+
+void view_cb(Fl_Widget*, void *v)
+{
+    EditorWindow *win = (EditorWindow *)v;
+    if(!win)
+        return;
+    //else 
+    //Create a new window to view a file at a slightly offset position than the original window
+    EditorWindow *new_win = new EditorWindow(win->w(), win->h(), filename);
+    new_win->position(win->x()+20, win->y()+20);
+    new_win->show();
+    set_title(new_win);  
+}
+
+void close_cb(Fl_Widget* w, void *v)
+{
+    EditorWindow *win = (EditorWindow *)v;
+    if(!win)
+        return;
+
+    //if the window to be closed is the last window open then quit it
+    if(Fl::first_window()->show_next_window_iconic() == nullptr)
+        quit_cb(w, v);
+    else
+        win->hide();    
+}
+
+void insert_cb(Fl_Widget *w, void *v)
+{
+    EditorWindow *win = (EditorWindow *)v;
+    if(!win || !win->editor)
+        return;
+
+    char *newfile = fl_file_chooser("Insert file", "*", "");
+    if(newfile != NULL)
+        load_file(win, newfile, win->editor->insert_position());    
+}
+
+void quit_cb(Fl_Widget*, void*)
+{
+    if(changed_flag && !check_save())    //if there are unsaved changes in current file
+        return;                     //return
+    exit(0);                        //exit with exit code 0
+}
+
+void save_as_cb(Fl_Widget*, void *v)
+{
+    EditorWindow *win = (EditorWindow *)v;
+    char *newfile = fl_file_chooser("Save file as: ", "*", filename);       //select or give the name to store the file
+    if(newfile != NULL)
+        save_file(win, newfile);
+}
+
+void save_cb(Fl_Widget*, void *v)
+{
+    if(changed_flag)
+    {
+        if(filename[0] == '\0')     //if no name has been given to file, then save as ..
+            save_as_cb(nullptr, v);
+        return; 
+    }
+    save_file((EditorWindow *)v, filename);     //save file which has a name
+}
+
+void replace_cb(Fl_Widget*, void *v)
+{
+    EditorWindow *win = (EditorWindow *)v;
+    if(!win || !win->editor)
+        return;
+    win->replace_win->show();    //show the replace window    
+}
+
+void replace2_cb(Fl_Widget*, void *v)
+{
+    EditorWindow *win = (EditorWindow *)v;
+    if(!win || !win->editor || !win->find_input || !win->replace_input)
+        return;
+    //else, all necessary items available
+    const char *find = win->find_input->value();
+    const char *replace = win->replace_input->value();
+    
+    if(find[0]=='\0')       //if search string is empty
+    {
+        find_cb(0, v);
+        return;
+    }
+
+    int start_pos = win->editor->insert_position(); //get the current cursor
+    int found_pos = textbuf->search_forward(start_pos, find, &start_pos);      
+    if(found_pos >= 0)
+    {
+        textbuf->select(start_pos, start_pos+strlen(find));
+        textbuf->remove_selection();
+        textbuf->insert(start_pos, replace);        //insert replace string at start index of old value
+        win->editor->insert_position(start_pos+strlen(replace));        //insert the cursor into the editor
+        win->editor->show_insert_position();
+        changed_flag = 1;
+    }
+    else
+    {
+        fl_alert("'%s' not found", find);
+    }
+}
+
+void replace_all_cb(Fl_Widget*, void *v)                //replaces all the occurences of a string
+{
+    EditorWindow *win = (EditorWindow *)v;
+    const char *find = win->find_input->value();
+    const char *replace = win->replace_input->value();
+
+    if(find[0] == '\0')
+    {
+        find_cb(0,v);
+        return;
+    }
+
+    int times_replaced = 0;
+    int start_pos = 0;
+
+    while(textbuf->search_forward(start_pos, find, &start_pos) >= 0)
+    {
+        textbuf->select(start_pos, start_pos+strlen(find));
+        textbuf->remove_selection();
+        textbuf->insert(start_pos, replace);
+        times_replaced++;
+        start_pos+=strlen(replace);             //update the position of cursor after replaceing the string
+        changed_flag = 1;
+    }
+
+    if(times_replaced == 0)
+        fl_alert("'%s' not found", find);
+    else
+        fl_alert("'%s' replaced %d times", find, times_replaced);
+}
+
+void cancel_replace_cb(Fl_Widget*, void *v)
+{
+    EditorWindow *win = (EditorWindow *)v;
+    win->replace_win->hide();
+}
+
+// ========== EDITOR WINDOW CONSTRUCTOR ==========
+
+EditorWindow::EditorWindow(int w, int h, const char *title): Fl_Double_Window(w, h, title)
+{
+    Fl_Menu_Bar *menubar = new Fl_Menu_Bar(100, 100, 300, 30);
+    Fl_Menu_Item menuitems[] = {
+        { "&File", 0, 0, 0, FL_SUBMENU },
+            { "&New File", FL_CTRL + 'n', (Fl_Callback *)new_cb },
+            { "&Open File...", FL_CTRL + 'o', (Fl_Callback *)open_cb },
+            { "&Insert File...", FL_CTRL + 'i', (Fl_Callback *)insert_cb, 0, FL_MENU_DIVIDER },
+            { "&Save File", FL_CTRL + 's', (Fl_Callback *)save_cb },
+            { "Save File &As...", FL_CTRL + FL_SHIFT + 's', (Fl_Callback *)save_as_cb, 0, FL_MENU_DIVIDER },
+            { "New &View", FL_ALT + 'v', (Fl_Callback *)view_cb, 0 },
+            { "&Close View", FL_CTRL + 'w', (Fl_Callback *)close_cb, 0, FL_MENU_DIVIDER },
+            { "E&xit", FL_CTRL + 'q', (Fl_Callback *)quit_cb, 0 },
+            { 0 },
+
+        { "&Edit", 0, 0, 0, FL_SUBMENU },
+            { "&Undo", FL_CTRL + 'z', (Fl_Callback *)undo_cb, 0, FL_MENU_DIVIDER },
+            { "Cu&t", FL_CTRL + 'x', (Fl_Callback *)cut_cb },
+            { "&Copy", FL_CTRL + 'c', (Fl_Callback *)copy_cb },
+            { "&Paste", FL_CTRL + 'v', (Fl_Callback *)paste_cb },
+            { "&Delete", 0, (Fl_Callback *)delete_cb },
+            { 0 },
+
+        { "&Search", 0, 0, 0, FL_SUBMENU },
+            { "&Find...", FL_CTRL + 'f', (Fl_Callback *)find_cb },
+            { "F&ind Again", FL_CTRL + 'g', (Fl_Callback *)find2_cb },
+            { "&Replace...", FL_CTRL + 'r', (Fl_Callback *)replace_cb },
+            { "Re&place Again", FL_CTRL + 't', (Fl_Callback *)replace2_cb },
+            { 0 },
+
+        { 0 }
+    };
+
+    menubar->menu(menuitems);
+
+    //create a text editor
+    editor = new Fl_Text_Editor(100, 130, w, h-30);
+    editor->buffer(textbuf);        //connect the editor to its text editor
+    editor->textfont(FL_COURIER);
+    editor->textsize(15);
+
+    //Create a dialog box for the replace functionality
+    replace_win = new Fl_Window(300, 120, "Replace");
+    find_input = new Fl_Input(80, 10, 200, 25, "Find:");
+    replace_input = new Fl_Input(80, 40, 200, 25, "Replace with:");
+    Fl_Button *replace_all_btn = new Fl_Button(10, 80, 90, 25, "Replace");
+    Fl_Button *replace_nxt_btn = new Fl_Button(110, 80, 90, 25, "Replace Next");
+    Fl_Button *cancel_replace_btn = new Fl_Button(210, 80, 90, 25, "Cancel");
+
+    replace_win->end();
+    replace_win->hide();
+
+    //Set callbacks - decides - when button clicked, what happens
+    replace_all_btn->callback((Fl_Callback *)replace_all_cb, this);
+    replace_nxt_btn->callback((Fl_Callback *)replace2_cb, this);
+    cancel_replace_btn->callback((Fl_Callback *)cancel_replace_cb, this);
+
+    this->end();
+}
+
+// ========== MAIN FUNCTION ==========
+
+int main(int argc, char **argv)
+{
+    textbuf = new Fl_Text_Buffer();
+    
+    EditorWindow *window = new EditorWindow(800, 600, "Text Editor");
+    window->show(argc, argv);
+    
+    textbuf->add_modify_callback(changed_cb, NULL);     //changed_cb is triggered/called whenever the text-buffe is modified
+    
+    set_title(window);
+
+    if(argc > 1)        //if more than 1 cmd-line argument is given
+        load_file(window, argv[1], -1);
+    
+    return Fl::run();
+}
