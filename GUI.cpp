@@ -37,15 +37,15 @@ void new_cb(Fl_Widget*, void*);
 void open_cb(Fl_Widget*, void*);
 void quit_cb(Fl_Widget*, void* v); // CORRECTED: Added void* for consistency
 void save_cb(Fl_Widget*, void* v);
-void saveas_cb(Fl_Widget*, void* v);
+void save_as_cb(Fl_Widget*, void* v);
 void replace_cb(Fl_Widget*, void*);
 void replace2_cb(Fl_Widget*, void*);
 void replace_all_cb(Fl_Widget*, void*);
 void cancel_replace_cb(Fl_Widget*, void*);
 int check_save(void *v); // CORRECTED: Pass window pointer to save
-void load_file(Editor_Window* win, char *newfile, int ipos = -1);
-void save_file(Editor_Window* win, char *newfile);
-void set_title(Editor_Window *w);
+void load_file(EditorWindow* win, char *newfile, int ipos = -1);
+void save_file(EditorWindow* win, char *newfile);
+void set_title(EditorWindow *w);
 void insert_cb(Fl_Widget*, void*);
 void view_cb(Fl_Widget*, void*);
 void close_cb(Fl_Widget*, void*);
@@ -188,7 +188,7 @@ void cut_cb(Fl_Widget*, void *v)        //cut the selected text to the clipboard
 {
     EditorWindow *win = (EditorWindow *)v;
     if(win && win->editor)        //if window and editor exist then
-        Fl_Text_Buffer::kf_cut(0, win->editor);
+        Fl_Text_Editor::kf_cut(0, win->editor);
 }
 
 void delete_cb(Fl_Widget*, void *v)
@@ -212,7 +212,7 @@ void find_cb(Fl_Widget *w, void *v)       //opens the find dialog box & gets the
     if(val)
     {
         strcpy(win->search_text, val);      //copy the text to find into the window's search_text variable
-        if(win->search_input)
+        if(win->find_input)
             win->find_input->value(val);    //set the find_input field in the replace window, if it exists
     }
 }
@@ -224,26 +224,35 @@ void find2_cb(Fl_Widget*, void *v)
         return; //return if window, editor or text buffer doesn't exist
 
     //else, find the next occurrence of the search text
-    if(win->search_text[0] == '\0'). //if no search text specified
+    if(win->search_text[0] == '\0') //if no search text specified
     {
-        find_cb(w, v); //open the find dialog to get the search text
+        find_cb(win, v); //open the find dialog to get the search text
         return;
     }
 
     int start_pos = win->editor->insert_position(); //get the current insert position of the cursor
-    int found_pos;
+    int found_pos = textbuf->search_forward(start_pos, win->search_text, &start_pos); //find the next occurrence of the search text
 
-    //if ther is a selection, start searching from the end of selection
-    if(textbuf->secondary_selection_visible())
-        start_pos = textbuf->selection_end();
-
-    if (textbuf->search_forward(start_pos, win->search_text, &found_pos)) {
-        textbuf->select(found_pos, found_pos + strlen(win->search_text));
-        win->editor->insert_position(found_pos + strlen(win->search_text));
-        win->editor->show_insert_position();
-    } else {
-        fl_alert("'%s' not found", win->search);
-    }   
+    if(found_pos >= 0)      //if a valid position of the find_input is found, then look for its start-position
+    {
+        textbuf->select(start_pos, start_pos+strlen(win->find_input->value()));   //select the found text
+        win->editor->insert_position(start_pos+strlen(win->find_input->value()));       //insert cursor at this found text's end to insert new value
+        win->editor->show_insert_position();    //show the insertion point
+    }
 }
 
-void new_cb()
+void new_cb(Fl_Widget*, void*)          //callback to handle opening a new file - by emptying the text-buffer for new file
+{
+    if(!check_save(nullptr))
+        return;             //if the currently open file has unsaved changes, then return 
+    //else currently open file is saved
+    if(textbuf)
+    {
+        textbuf->select(0, textbuf->length());      //select entire buffer
+        textbuf->remove_selection();                //remove the selected text
+    }  
+    changed_flag = 0;        //set the changed flag to 0 - as buffer has been cleared for a new file to be opened
+    if(textbuf)
+        textbuf->call_modify_callbacks();           //manually call the modified callback to update the display
+}   
+
