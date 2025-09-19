@@ -9,7 +9,7 @@ LDFLAGS = `fltk-config --ldflags`
 #Target executable name and source file
 TARGET = gui
 #Name of the source file
-SOURCES = GUI.cpp
+SOURCES = gui.cpp
 
 #Build target
 all: $(TARGET)
