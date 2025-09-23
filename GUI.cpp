@@ -290,12 +290,8 @@ void close_cb(Fl_Widget* w, void *v)
     EditorWindow *win = (EditorWindow *)v;
     if(!win)
         return;
-
-    //if the window to be closed is the last window open then quit it
-    if(Fl::first_window()->show_next_window_iconic() == nullptr)
-        quit_cb(w, v);
-    else
-        win->hide();    
+    //else
+    win->hide();    
 }
 
 void insert_cb(Fl_Widget *w, void *v)
