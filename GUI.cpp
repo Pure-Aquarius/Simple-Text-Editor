@@ -59,7 +59,6 @@ class EditorWindow: public Fl_Double_Window
 {
     public:
         EditorWindow(int w, int h, const char *title);
-        ~EditorWindow();
 
         Fl_Window *replace_win = nullptr; // Pointer to the replace window
         Fl_Input *find_input = nullptr;   // Pointer to the find input field
@@ -408,7 +407,7 @@ void cancel_replace_cb(Fl_Widget*, void *v)
     win->replace_win->hide();
 }
 
-// ========== EDITOR WINDOW CONSTRUCTOR ==========
+// ========== EDITOR WINDOW CONSTRUCTOR & DESTRUCTOR ==========
 
 EditorWindow::EditorWindow(int w, int h, const char *title): Fl_Double_Window(w, h, title)
 {
