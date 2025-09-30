@@ -10,7 +10,23 @@
 #include <FL/Fl_Text_Editor.H>
 #include <FL/Fl_Text_Buffer.H>
 
-// --- CLASS DEFINITION ---
+
+//forward declaration
+class Fl_Text_Editor;
+
+// --- CLASS DEFINITIONS ---
+
+//class to create a widget that displays line numbers on the left side of the text editor and scrolls in sync with it
+class LineNumberWidget: public Fl_Widget        
+{
+    private:
+        Fl_Text_Editor *editor;     //pointer to the associated text editor
+    public:
+        LineNumberWidget(int x, int y, int w, int h, Fl_Text_Editor *e);
+
+        void draw() override; //override the draw method to render line numbers
+};
+
 // This is the "what" - it declares what our EditorWindow is.
 class EditorWindow: public Fl_Double_Window
 {
@@ -20,6 +36,7 @@ class EditorWindow: public Fl_Double_Window
         Fl_Window *replace_win = nullptr; // Pointer to the replace window
         Fl_Input *find_input = nullptr;   // Pointer to the find input field
         Fl_Input *replace_input = nullptr; // Pointer to the replace input field
+        LineNumberWidget *lineNo = nullptr; //Pointer to the line number widget
 
         Fl_Text_Editor *editor = nullptr; // Pointer to the text editor
         char search_text[256] = {0}; // Text to find
@@ -30,11 +47,10 @@ class EditorWindow: public Fl_Double_Window
 // By using 'extern', we are telling any .cpp file that includes this header file
 // that these variables exist somewhere else (in our editor.cpp file).
 // This prevents "multiple definition" errors if you include this header in more than one file.
-                                    //NOTE: For a multi-window app, it's better to avoid globals.
-                                    // But for a single-window editor, this is acceptable.
-extern int changed_flag;            //flag to indicate if changes have been made to a file
-extern char filename[256];         //name of the current file
-extern Fl_Text_Buffer *textbuf; //text buffer for the text editor
+        // NOTE: For a multi-window app, it's better to avoid globals. But for a single-window editor, this is acceptable.
+extern int changed_flag;            // flag to indicate if changes have been made to a file
+extern char filename[256];          // name of the current file
+extern Fl_Text_Buffer *textbuf;     // text buffer for the text editor
 
 //Function prototypes
 void changed_cb(int pos, int nInserted, int nDeleted, int nRestyled, const char *deletedText, void *v);
