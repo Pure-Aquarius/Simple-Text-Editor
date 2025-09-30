@@ -27,7 +27,6 @@ extern Fl_Text_Buffer *textbuf = nullptr;   //text buffer for the text editor
 //A simple flag to prevent recursion in changed_cb()
 int loading = 0;
 
-
 // ========== SUPPORT FUNCTIONS ==========
 
 int check_save()         //checks if the file has been saved
@@ -366,6 +365,46 @@ void cancel_replace_cb(Fl_Widget*, void *v)
 {
     EditorWindow *win = (EditorWindow *)v;
     win->replace_win->hide();
+}
+
+// ========== LineNumber Widget Constructor & draw() method definition ===========
+
+LineNumberWidget::LineNumberWidget(int x, int y, int w, int h, Fl_Text_Editor *e): Fl_Widget(x, y, w, h)
+{
+    this->editor = e; //associate the text editor with this line number widget
+}
+
+void LineNumberWidget::draw()
+{
+    Fl_Widget::draw(); //call the base class draw method to draw the background
+
+    //set the drawing style for the line numbers
+    fl_font(FL_COURIER, editor->textsize());    //set the font and size to match the text editor
+    fl_color(FL_GRAY);                          //set the color to gray
+
+    // get the range of lines we need to draw
+    int firstLine = editor->top_line(); //get the first visible line in the text editor
+    int lastLine = firstLine + editor->visible_lines(); //get the last visible line in the text editor
+
+    //ensuring we don't go beyond the total number of lines in the text-buffer
+    int totalLines = editor->buffer()->count_lines(0, editor->buffer()->length());
+    if(lastLine > totalLines)
+        lastLine = totalLines;
+
+    //loop through the visible lines and draw their numbers
+    for(int lineToDraw = firstLine; lineToDraw<=lastLine; lineToDraw++)
+    {
+        //getting the y-co-ordinate of the line to draw - starts from top left increasing downwards
+        int y = editor->line_start(lineToDraw);
+
+        //define buffer to hold the formatted line number string
+        char line_num_str[16];
+        // Use snprintf for safe string formatting. We add 1 to line_num because it's 0-indexed.
+        snprintf(line_num_str, sizeof(line_num_str), "%4d", lineToDraw + 1); 
+
+        //draw the line number string using the widget's x() coordinate and the calculated y coordinate
+        fl_draw(line_num_str, this->x(), y);
+    }
 }
 
 // ========== EDITOR WINDOW CONSTRUCTOR & DESTRUCTOR ==========
