@@ -2,22 +2,23 @@
 CXX = g++	
 
 #Compiler flags to get fltk compile and link flags using fltk-config utility
-CXXFLAGS = `fltk-config --cxxflags`
+# The -g flag adds debugging symbols, which is very usef
+CXXFLAGS = `fltk-config --cxxflags` -g -Wall
 #Linker flags to get fltk link flags using fltk-config utility
 LDFLAGS = `fltk-config --ldflags`
 
 #Target executable name and source file
-TARGET = gui
+TARGET = editor
 #Name of the source file
-SOURCES = gui.cpp
+SOURCES = editor.cpp
 
-#Build target
+#Default Build target
 all: $(TARGET)
 
 #Rule to build the target executable from source file
 $(TARGET): $(SOURCES)
 #Compile and link the source file to create the executable
-	$(CXX) $(CXXFLAGS) $(SOURCE) $(LDFLAGS) -o $(TARGET)
+	$(CXX) $(CXXFLAGS) $(SOURCES) -o $(TARGET) $(LDFLAGS) 
 
 #Rule to clean up the built files
 clean:
