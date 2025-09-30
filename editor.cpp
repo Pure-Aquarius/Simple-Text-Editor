@@ -1,30 +1,28 @@
-#include "editor.h"
+// -- REQUIRED HEADERS FOR IMPLEMENTATION --
+#include "editor.h" //CUSTOM HEADERS COME FIRST
 
+// These headers are needed for the "how" (the implementation) of our functions.
 #include <iostream>
 #include <cstring>
 #include <cstdio>
 #include <cerrno>
-#include <FL/Fl.H>
+
+// FLTK headers for things used only in this .cpp file,
 #include <FL/Fl_Window.H>
-#include <FL/Fl_Text_Buffer.H>
 #include <FL/Fl_Button.H>
-#include <FL/Fl_Input.H>
-#include <FL/Fl_Text_Editor.H>
 #include <FL/Fl_Return_Button.H>
 #include <FL/Fl_File_Chooser.H>
-#include <FL/Fl_Double_Window.H>
 #include <FL/Fl_Menu_Bar.H>
 #include <FL/fl_ask.H>
 using namespace std;
 
-//Forward declarations
-class EditorWindow;
 
-//Global variables              NOTE: For a multi-window app, it's better to avoid globals.
-                                   // But for a single-window editor, this is acceptable.
-int changed_flag = 0;            //flag to indicate if changes have been made to a file
-char filename[256] = "";         //name of the current file
-Fl_Text_Buffer *textbuf = nullptr; //text buffer for the text editor
+// --- GLOBAL VARIABLE DEFINITIONS ---
+// These are the actual definitions of the global variables declared in the header.
+// They live here in the .cpp file.
+extern int changed_flag = 0;                //flag to indicate if changes have been made to a file
+extern char filename[256] = "";             //name of the current file
+extern Fl_Text_Buffer *textbuf = nullptr;   //text buffer for the text editor
 
 //A simple flag to prevent recursion in changed_cb()
 int loading = 0;
@@ -106,8 +104,9 @@ void set_title(EditorWindow *w)         //set the window title based on current 
     if(filename[0] == '\0')                         //if no filename given
         strcpy(title, "Untitled");                  //set title to "Untitled"
     else
-    {
-        char *slash = strrchr(filename, '/');       //find last '/' in the filename, after which is the actual name of the file
+    {   
+        //use fl_filename_name to extract filename safely from a path
+        const char *slash = fl_filename_name(filename);       //find last '/' in the filename, after which is the actual name of the file
         if(slash != nullptr)
             strcpy(title, slash+1);                 //copy the actual filename
         else
@@ -371,37 +370,38 @@ void cancel_replace_cb(Fl_Widget*, void *v)
 
 // ========== EDITOR WINDOW CONSTRUCTOR & DESTRUCTOR ==========
 
-EditorWindow::EditorWindow(int w, int h, const char *title): Fl_Double_Window(w, h, title)
-{
-    Fl_Menu_Bar *menubar = new Fl_Menu_Bar(100, 100, 300, 30);
+EditorWindow::EditorWindow(int w, int h, const char *title): Fl_Double_Window(w, h, title) {
+    begin(); // Start adding to this window
+
+    Fl_Menu_Bar *menubar = new Fl_Menu_Bar(0, 0, w, 25);
     Fl_Menu_Item menuitems[] = {
-        { "&File", 0, 0, 0, FL_SUBMENU },
-            { "&New File", FL_CTRL + 'n', (Fl_Callback *)new_cb },
-            { "&Open File...", FL_CTRL + 'o', (Fl_Callback *)open_cb },
-            { "&Insert File...", FL_CTRL + 'i', (Fl_Callback *)insert_cb, 0, FL_MENU_DIVIDER },
-            { "&Save File", FL_CTRL + 's', (Fl_Callback *)save_cb },
-            { "Save File &As...", FL_CTRL + FL_SHIFT + 's', (Fl_Callback *)save_as_cb, 0, FL_MENU_DIVIDER },
-            { "New &View", FL_ALT + 'v', (Fl_Callback *)view_cb, 0 },
-            { "&Close View", FL_CTRL + 'w', (Fl_Callback *)close_cb, 0, FL_MENU_DIVIDER },
-            { "E&xit", FL_CTRL + 'q', (Fl_Callback *)quit_cb, 0 },
-            { 0 },
+      { "&File",              0, 0, 0, FL_SUBMENU },
+        { "&New File",        FL_COMMAND + 'n', (Fl_Callback *)new_cb, this },
+        { "&Open File...",    FL_COMMAND + 'o', (Fl_Callback *)open_cb, this },
+        { "&Insert File...",  FL_COMMAND + 'i', (Fl_Callback *)insert_cb, this, FL_MENU_DIVIDER },
+        { "&Save File",       FL_COMMAND + 's', (Fl_Callback *)save_cb, this },
+        { "Save File &As...", FL_COMMAND + FL_SHIFT + 's', (Fl_Callback *)save_as_cb, this, FL_MENU_DIVIDER },
+        { "New &View",        0, (Fl_Callback *)view_cb, this },
+        { "&Close View",      FL_COMMAND + 'w', (Fl_Callback *)close_cb, this, FL_MENU_DIVIDER },
+        { "E&xit",            FL_COMMAND + 'q', (Fl_Callback *)quit_cb, this },
+        { 0 },
 
-        { "&Edit", 0, 0, 0, FL_SUBMENU },
-            { "&Undo", FL_CTRL + 'z', (Fl_Callback *)undo_cb, 0, FL_MENU_DIVIDER },
-            { "Cu&t", FL_CTRL + 'x', (Fl_Callback *)cut_cb },
-            { "&Copy", FL_CTRL + 'c', (Fl_Callback *)copy_cb },
-            { "&Paste", FL_CTRL + 'v', (Fl_Callback *)paste_cb },
-            { "&Delete", 0, (Fl_Callback *)delete_cb },
-            { 0 },
+      { "&Edit",              0, 0, 0, FL_SUBMENU },
+        { "&Undo",            FL_COMMAND + 'z', (Fl_Callback *)undo_cb, this, FL_MENU_DIVIDER },
+        { "Cu&t",             FL_COMMAND + 'x', (Fl_Callback *)cut_cb, this },
+        { "&Copy",            FL_COMMAND + 'c', (Fl_Callback *)copy_cb, this },
+        { "&Paste",           FL_COMMAND + 'v', (Fl_Callback *)paste_cb, this },
+        { "&Delete",          0, (Fl_Callback *)delete_cb, this },
+        { 0 },
 
-        { "&Search", 0, 0, 0, FL_SUBMENU },
-            { "&Find...", FL_CTRL + 'f', (Fl_Callback *)find_cb },
-            { "F&ind Again", FL_CTRL + 'g', (Fl_Callback *)find2_cb },
-            { "&Replace...", FL_CTRL + 'r', (Fl_Callback *)replace_cb },
-            { "Re&place Again", FL_CTRL + 't', (Fl_Callback *)replace2_cb },
-            { 0 },
-
-        { 0 }
+      { "&Search",            0, 0, 0, FL_SUBMENU },
+        { "&Find...",         FL_COMMAND + 'f', (Fl_Callback *)find_cb, this },
+        { "F&ind Again",      FL_COMMAND + 'g', (Fl_Callback *)find2_cb, this },
+        { "&Replace...",      FL_COMMAND + 'r', (Fl_Callback *)replace_cb, this },
+        { "Re&place Again",   FL_COMMAND + 't', (Fl_Callback *)replace2_cb, this },
+        { 0 },
+      
+      { 0 }
     };
 
     menubar->menu(menuitems);
@@ -436,12 +436,10 @@ EditorWindow::EditorWindow(int w, int h, const char *title): Fl_Double_Window(w,
 int main(int argc, char **argv)
 {
     textbuf = new Fl_Text_Buffer();
-    
+
     EditorWindow *window = new EditorWindow(800, 600, "Text Editor");
     window->show(argc, argv);
-    
     textbuf->add_modify_callback(changed_cb, NULL);     //changed_cb is triggered/called whenever the text-buffe is modified
-    
     set_title(window);
 
     if(argc > 1)        //if more than 1 cmd-line argument is given
