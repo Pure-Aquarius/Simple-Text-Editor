@@ -15,7 +15,7 @@ SOURCES = gui.cpp
 all: $(TARGET)
 
 #Rule to build the target executable from source file
-$(TARGET): $(SOURCE)
+$(TARGET): $(SOURCES)
 #Compile and link the source file to create the executable
 	$(CXX) $(CXXFLAGS) $(SOURCE) $(LDFLAGS) -o $(TARGET)
 
