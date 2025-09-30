@@ -445,11 +445,27 @@ EditorWindow::EditorWindow(int w, int h, const char *title): Fl_Double_Window(w,
 
     menubar->menu(menuitems);
 
+    //Get the dimensions of the window excluding the menubar
+    const int menu_bar_ht = menubar->h();
+    const int lineNoWidg_width = 50; //width of the line number widget
+
     //create a text editor
-    editor = new Fl_Text_Editor(100, 130, w, h-30);
+    editor = new Fl_Text_Editor(lineNoWidg_width, menu_bar_ht, w-lineNoWidg_width, h-menu_bar_ht);
     editor->buffer(textbuf);        //connect the editor to its text editor
     editor->textfont(FL_COURIER);
     editor->textsize(15);
+
+    //create a line number widget
+    LineNumberWidget *LineNoWidget = new LineNumberWidget(0, menu_bar_ht, lineNoWidg_width, h - menu_bar_ht, this->editor);
+    
+    // STEP (CRITICAL): Add a callback to the editor's buffer.
+    // This tells the line_numbers widget to redraw() whenever the text changes or scrolls.
+    textbuf->add_modify_callback([](int, int, int, int, const char*, void* v) {
+        ((LineNumberWidget*)v)->redraw();
+    }, LineNoWidget);
+
+    end();      //stop adding to this window
+    resizeable(editor); //make the text editor resizable with the window
 
     //Create a dialog box for the replace functionality
     replace_win = new Fl_Window(300, 120, "Replace");
