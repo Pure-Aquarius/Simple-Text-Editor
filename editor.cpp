@@ -20,9 +20,9 @@ using namespace std;
 // --- GLOBAL VARIABLE DEFINITIONS ---
 // These are the actual definitions of the global variables declared in the header.
 // They live here in the .cpp file.
-extern int changed_flag = 0;                //flag to indicate if changes have been made to a file
-extern char filename[256] = "";             //name of the current file
-extern Fl_Text_Buffer *textbuf = nullptr;   //text buffer for the text editor
+int changed_flag = 0;                //flag to indicate if changes have been made to a file
+char filename[256] = "";             //name of the current file
+Fl_Text_Buffer *textbuf = nullptr;   //text buffer for the text editor
 
 //A simple flag to prevent recursion in changed_cb()
 int loading = 0;
@@ -374,36 +374,50 @@ LineNumberWidget::LineNumberWidget(int x, int y, int w, int h, Fl_Text_Editor *e
     this->editor = e; //associate the text editor with this line number widget
 }
 
-void LineNumberWidget::draw()
-{
-    Fl_Widget::draw(); //call the base class draw method to draw the background
+void LineNumberWidget::draw() {
+    // Standard widget drawing setup
+    Fl_Widget::draw();
+    fl_font(FL_COURIER, editor->textsize());
+    fl_color(FL_GRAY);
 
-    //set the drawing style for the line numbers
-    fl_font(FL_COURIER, editor->textsize());    //set the font and size to match the text editor
-    fl_color(FL_GRAY);                          //set the color to gray
+    // Cast the editor to its display component to access display functions
+    Fl_Text_Display* display = (Fl_Text_Display*)editor;
+    int max_lines = editor->buffer()->count_lines(0, editor->buffer()->length());
+    
+    // Get the y-coordinate of the top of the actual text display area
+    int editor_top_y = display->y();
 
-    // get the range of lines we need to draw
-    int firstLine = editor->top_line(); //get the first visible line in the text editor
-    int lastLine = firstLine + editor->visible_lines(); //get the last visible line in the text editor
+    // --- Find the top visible line ---
+    // We do this by checking the y-position of each line until we find
+    // the first one that is visible within the editor's display area.
+    int first_line_to_draw = 0;
+    for (int i = 0; i < max_lines; i++) {
+        // line_start() gives the y-pixel-coordinate of the top of a given line.
+        if (display->line_start(i) >= editor_top_y) {
+            first_line_to_draw = i;
+            break;
+        }
+    }
 
-    //ensuring we don't go beyond the total number of lines in the text-buffer
-    int totalLines = editor->buffer()->count_lines(0, editor->buffer()->length());
-    if(lastLine > totalLines)
-        lastLine = totalLines;
+    // Get the y-coordinate of the bottom of our line number widget
+    int widget_bottom_y = this->y() + this->h();
 
-    //loop through the visible lines and draw their numbers
-    for(int lineToDraw = firstLine; lineToDraw<=lastLine; lineToDraw++)
-    {
-        //getting the y-co-ordinate of the line to draw - starts from top left increasing downwards
-        int y = editor->line_start(lineToDraw);
+    // --- Loop and draw the visible line numbers ---
+    for (int line_num = first_line_to_draw; line_num <= max_lines; ++line_num) {
+        int y_pos = display->line_start(line_num);
 
-        //define buffer to hold the formatted line number string
-        char line_num_str[16];
-        // Use snprintf for safe string formatting. We add 1 to line_num because it's 0-indexed.
-        snprintf(line_num_str, sizeof(line_num_str), "%4d", lineToDraw + 1); 
+        // If the next line to draw is below our widget, we can stop.
+        if (y_pos > widget_bottom_y) {
+            break;
+        }
 
-        //draw the line number string using the widget's x() coordinate and the calculated y coordinate
-        fl_draw(line_num_str, this->x(), y);
+        // Only draw if the line is actually inside our widget's visible area.
+        if (y_pos >= this->y()) {
+            char line_num_str[16];
+            // Format the number (e.g., " 123 ") and draw it.
+            snprintf(line_num_str, sizeof(line_num_str), "%4d ", line_num + 1);
+            fl_draw(line_num_str, this->x(), y_pos);
+        }
     }
 }
 
@@ -465,7 +479,7 @@ EditorWindow::EditorWindow(int w, int h, const char *title): Fl_Double_Window(w,
     }, LineNoWidget);
 
     end();      //stop adding to this window
-    resizeable(editor); //make the text editor resizable with the window
+    resizable(editor); //make the text editor resizable with the window
 
     //Create a dialog box for the replace functionality
     replace_win = new Fl_Window(300, 120, "Replace");
