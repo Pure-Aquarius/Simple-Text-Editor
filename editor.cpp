@@ -29,7 +29,7 @@ int loading = 0;
 
 // ========== SUPPORT FUNCTIONS ==========
 
-int check_save()         //checks if the file has been saved
+int check_save(EditorWindow *win)         //checks if the file has been saved
 {
     if(!changed_flag) return 1; //no changes, so OK to proceed
 
@@ -38,7 +38,7 @@ int check_save()         //checks if the file has been saved
                            "Save", "Discard Changes", "Cancel");
     if(choice == 1)
     {
-        save_cb(0, 0); //save the file
+        save_cb(nullptr, win); //save the file
         return !changed_flag; //if save was successful, changed_flag will be cleared
     }
     if(choice == 2)
@@ -79,7 +79,7 @@ void load_file(EditorWindow *win, char *newfile, int ipos)          //load file 
     win->editor->show_insert_position(); //show the insertion point
 }
 
-void save_file(EditorWindow *win, char *newfile)        //save the buffer contenc=ts to a file
+void save_file(EditorWindow *win, char *newfile)        //save the buffer contents to a file
 {
     if(!win || !textbuf || !newfile) return;
 
@@ -140,7 +140,7 @@ void paste_cb(Fl_Widget*, void *v)    //paste the clipboard text to the editor
 {
     EditorWindow *win = (EditorWindow *)v;
     if(win && win->editor)              //if window and editor exist then
-        Fl_Text_Editor::kf_page_down(0, win->editor);
+        Fl_Text_Editor::kf_paste(0, win->editor);
 }
 
 void cut_cb(Fl_Widget*, void *v)        //cut the selected text to the clipboard
@@ -194,15 +194,15 @@ void find2_cb(Fl_Widget*, void *v)
 
     if(found_pos >= 0)      //if a valid position of the find_input is found, then look for its start-position
     {
-        textbuf->select(start_pos, start_pos+strlen(win->find_input->value()));   //select the found text
-        win->editor->insert_position(start_pos+strlen(win->find_input->value()));       //insert cursor at this found text's end to insert new value
+        textbuf->select(start_pos, start_pos+strlen(win->search_text));   //select the found text
+        win->editor->insert_position(start_pos+strlen(win->search_text));       //insert cursor at this found text's end to insert new value
         win->editor->show_insert_position();    //show the insertion point
     }
 }
 
-void new_cb(Fl_Widget*, void*)          //callback to handle opening a new file - by emptying the text-buffer for new file
+void new_cb(Fl_Widget*, void* v)          //callback to handle opening a new file - by emptying the text-buffer for new file
 {
-    if(!check_save())
+    if(!check_save((EditorWindow *)v))
         return;             //if the currently open file has unsaved changes, then return 
     //else currently open file is saved
 
@@ -220,7 +220,7 @@ void new_cb(Fl_Widget*, void*)          //callback to handle opening a new file 
 
 void open_cb(Fl_Widget*, void *v)
 {
-    if(!check_save())
+    if(!check_save((EditorWindow *)v))
         return;                 //return if there are unsaved changes in currently-open file before opening another one
     //else. there are no changes, OK to proceed
     EditorWindow *win = (EditorWindow *)v;
@@ -237,7 +237,7 @@ void view_cb(Fl_Widget*, void *v)
     if(!win)
         return;
     //else 
-    //Create a new window to view a file at a slightly offset position than the original window
+    //Create a new window to view another file at a slightly offset/different position than the original window
     EditorWindow *new_win = new EditorWindow(win->w(), win->h(), filename);
     new_win->position(win->x()+20, win->y()+20);
     new_win->show();
@@ -264,9 +264,9 @@ void insert_cb(Fl_Widget *w, void *v)
         load_file(win, newfile, win->editor->insert_position());    
 }
 
-void quit_cb(Fl_Widget*, void*)
+void quit_cb(Fl_Widget*, void *v)
 {
-    if(changed_flag && !check_save())    //if there are unsaved changes in current file
+    if(changed_flag && !check_save((EditorWindow *)v))    //if there are unsaved changes in current file
         return;                     //return
     exit(0);                        //exit with exit code 0
 }
@@ -285,6 +285,8 @@ void save_cb(Fl_Widget*, void *v)
     {
         if(filename[0] == '\0')     //if no name has been given to file, then save as ..
             save_as_cb(nullptr, v);
+        else
+            save_file((EditorWindow *)v, filename);     //save file which has already been named and saved previously
         return; 
     }
     save_file((EditorWindow *)v, filename);     //save file which has a name
