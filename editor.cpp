@@ -16,13 +16,7 @@
 #include <FL/fl_ask.H>
 using namespace std;
 
-
-// --- GLOBAL VARIABLE DEFINITIONS ---
-// These are the actual definitions of the global variables declared in the header.
-// They live here in the .cpp file.
-int changed_flag = 0;                //flag to indicate if changes have been made to a file
-char filename[256] = "";             //name of the current file
-Fl_Text_Buffer *textbuf = nullptr;   //text buffer for the text editor
+// GLOBAL VARIABLES have been removed
 
 //A simple flag to prevent recursion in changed_cb()
 int loading = 0;
@@ -31,91 +25,89 @@ int loading = 0;
 
 int check_save(EditorWindow *win)         //checks if the file has been saved
 {
-    if(!changed_flag) return 1; //no changes, so OK to proceed
+    if(!win->changed_flag) return 1; //no changes, so OK to proceed
 
     //else, changes have been made that need to be saved or discarded
     int choice = fl_choice("The current file has not been save.\n Would you like to save it? 1. Save 2. Discard Changes 3. Cancel",
                            "Save", "Discard Changes", "Cancel");
-    if(choice == 1)
+    if(choice == 0)
     {
         save_cb(nullptr, win); //save the file
-        return !changed_flag; //if save was successful, changed_flag will be cleared
+        return !win->changed_flag; //if save was successful, changed_flag will be cleared
     }
-    if(choice == 2)
+    if(choice == 1)
         return 1; //Nothing is saved
-    //else choice == 3
+    //else choice == 2
     return 0; //cancel operation    
 }
 
 void load_file(EditorWindow *win, char *newfile, int ipos)          //load file into the text buffer
 {
-    if(!newfile || !win || !textbuf)    return;           
+    if(!newfile || !win || !win->textbuf)    return;           
     
     loading = 1; //prevent changed_cb() from being called
     int insert = (ipos != -1); //flag to indicate if we are inserting or replacing: true(1) --> insert, false(0) --> replace
 
-    if(!insert) //if replacing the entire buffer
-        strcpy(filename, ""); //clear the filename first
+    if(!insert) //if not inserting file, we are replacing the entire buffer for a new file
+        strcpy(win->filename, ""); //clear the filename first
     
     bool success = false; //flag to indicate if file was loaded successfully
     if(insert)
-        success = (textbuf->insertfile(newfile, ipos) == 0); //insert file at position ipos
+        success = (win->textbuf->insertfile(newfile, ipos) == 0); //insert file at position ipos
     else
-        success = (textbuf->loadfile(newfile) == 0); //replace entire buffer with file contents
+        success = (win->textbuf->loadfile(newfile) == 0); //replace entire buffer with file contents
     
     if (success)        //if file loaded successfully
     {
         if(!insert) //if replacing the entire buffer
         {
-            strcpy(filename, newfile); //set the current filename
-            changed_flag = insert; //clear the changed flag
+            strcpy(win->filename, newfile); //set the current filename
+            win->changed_flag = 0; //clear the changed flag
         }
     }
     else
         fl_alert("Error loading file '%s': %s", newfile, strerror(errno));
     
     loading =0; //re-enable changed_cb()
-    textbuf->call_modify_callbacks(); //manually call the modified callback to update the display
+    win->textbuf->call_modify_callbacks(); //manually call the modified callback to update the display
     win->editor->show_insert_position(); //show the insertion point
 }
 
 void save_file(EditorWindow *win, char *newfile)        //save the buffer contents to a file
 {
-    if(!win || !textbuf || !newfile) return;
+    if(!win || !win->textbuf || !newfile) return;
 
-    if(textbuf->savefile(newfile) == 0) //if file saved successfully
+    if(win->textbuf->savefile(newfile) == 0) //if file saved successfully
     {
-        strcpy(filename, newfile);   //set the current filename
-        changed_flag = 0;            //clear the changed flag
+        strcpy(win->filename, newfile);   //set the current filename
+        win->changed_flag = 0;            //clear the changed flag
     }
     else
         fl_alert("Error saving file '%s': %s", newfile, strerror(errno));
     
-    textbuf->call_modify_callbacks(); //manually call the modified callback to update the display
+    win->textbuf->call_modify_callbacks(); //manually call the modified callback to update the display
     win->editor->show_insert_position(); //show the insertion point
 }
 
-void set_title(EditorWindow *w)         //set the window title based on current filename
+void set_title(EditorWindow *win)         //set the window title based on current filename
 {
-    if(!w) return;
+    if(!win) return;
 
     char title[300];                                //buffer for the title
-    if(filename[0] == '\0')                         //if no filename given
+    if(win->filename[0] == '\0')                         //if no filename given
         strcpy(title, "Untitled");                  //set title to "Untitled"
     else
     {   
         //use fl_filename_name to extract filename safely from a path
-        const char *slash = fl_filename_name(filename);       //find last '/' in the filename, after which is the actual name of the file
-        if(slash != nullptr)
-            strcpy(title, slash+1);                 //copy the actual filename
-        else
-            strcpy(title, filename);                //no '/' found, so copy the entire filename
+        const char *f_name = fl_filename_name(win->filename);       //find last '/' in the filename, after which is the actual name of the file
+        strncpy(title, f_name, sizeof(title) - 1);      //copy the filename into title buffer
+        title[sizeof(title) - 1] = '\0';             //no '/' found, so copy the entire filename
     }    
 
-    if(changed_flag)                                //if changes have been made to this file
+    if(win->changed_flag)                                //if changes have been made to this file
         strcat(title, " (modified)");               //append " (modified)" to the title
     
-    w->copy_label(title);                           //set the window title    
+    win->label(title);                           //set the window title    
 
 }
 
@@ -123,9 +115,9 @@ void set_title(EditorWindow *w)         //set the window title based on current 
 
 void changed_cb(int, int nInserted, int nDeleted, int, const char*, void* v)          //Called whenever changes are made to the buffer
 {
-    if((nInserted || nDeleted) && !loading)     //if something was actually inserted or deleted, and we are not loading a file
-        changed_flag = 1;                       //set the changed flag
     EditorWindow *win = (EditorWindow*)v;
+    if((nInserted || nDeleted) && !loading)     //if something was actually inserted or deleted, and we are not loading a file
+        win->changed_flag = 1;                       //set the changed flag
     set_title(win);                             //update the window title after every change
 }
 
@@ -151,22 +143,22 @@ void cut_cb(Fl_Widget*, void *v)        //cut the selected text to the clipboard
 }
 
 void delete_cb(Fl_Widget*, void *v)
-{
-    if(textbuf)
-        textbuf->remove_selection(); //delete the selected text
+{   
+    EditorWindow *win = (EditorWindow *)v;
+    if(win->textbuf)
+        win->textbuf->remove_selection(); //delete the selected text
 }
 
 void undo_cb(Fl_Widget*, void *v)
 {
-    if(textbuf)
-        textbuf->undo(); //undo the last action
+    EditorWindow *win = (EditorWindow *)v;
+    if(win->textbuf)
+        win->textbuf->undo(); //undo the last action
 }
 
 void find_cb(Fl_Widget *w, void *v)       //opens the find dialog box & gets the search text from the user
 {
     EditorWindow *win = (EditorWindow *)v;
-    if(!win)    return;     //return if window doesn't exist
-
     const char *val = fl_input("Enter the text to find:", win->search_text);
     if(val)
     {
@@ -179,54 +171,55 @@ void find_cb(Fl_Widget *w, void *v)       //opens the find dialog box & gets the
 void find2_cb(Fl_Widget*, void *v)
 {
     EditorWindow *win = (EditorWindow *)v;
-    if(!win || !win->editor || !textbuf)
+    if(!win || !win->editor || !win->textbuf)
         return; //return if window, editor or text buffer doesn't exist
 
     //else, find the next occurrence of the search text
-    if(win->search_text[0] == '\0') //if no search text specified
+    if(win->search_text == '\0') //if no search text given 
     {
         find_cb(win, v); //open the find dialog to get the search text
         return;
     }
 
     int start_pos = win->editor->insert_position(); //get the current insert position of the cursor
-    int found_pos = textbuf->search_forward(start_pos, win->search_text, &start_pos); //find the next occurrence of the search text
+    int found_pos = win->textbuf->search_forward(start_pos, win->search_text, &start_pos); //find the next occurrence of the search text
 
     if(found_pos >= 0)      //if a valid position of the find_input is found, then look for its start-position
     {
-        textbuf->select(start_pos, start_pos+strlen(win->search_text));   //select the found text
+        win->textbuf->select(start_pos, start_pos+strlen(win->search_text));   //select the found text
         win->editor->insert_position(start_pos+strlen(win->search_text));       //insert cursor at this found text's end to insert new value
         win->editor->show_insert_position();    //show the insertion point
     }
+    else
+        fl_alert("'%s' not found", win->search_text);
 }
 
 void new_cb(Fl_Widget*, void* v)          //callback to handle opening a new file - by emptying the text-buffer for new file
 {
-    if(!check_save((EditorWindow *)v))
+    EditorWindow *win = (EditorWindow *)v;
+    if(!check_save(win))
         return;             //if the currently open file has unsaved changes, then return 
-    //else currently open file is saved
 
-    filename[0] = '\0';     //clear the filename
-
-    if(textbuf)
+    //else currently open file is saved, so we can open a new file editor window without worries
+    win->filename[0] = '\0';     //clear the filename
+    if(win->textbuf)            //is the text buffer has content from previous files, then remove it
     {
-        textbuf->select(0, textbuf->length());      //select entire buffer
-        textbuf->remove_selection();                //remove the selected text
+        win->textbuf->select(0, win->textbuf->length());      //select entire buffer
+        win->textbuf->remove_selection();                //remove the selected text
     }  
-    changed_flag = 0;        //set the changed flag to 0 - as buffer has been cleared for a new file to be opened
-    if(textbuf)
-        textbuf->call_modify_callbacks();           //manually call the modified callback to update the display
+    win->changed_flag = 0;        //set the changed flag to 0 - as buffer has been cleared for a new file to be opened
+    win->textbuf->call_modify_callbacks();           //manually call the modified callback to update the display
 }   
 
 void open_cb(Fl_Widget*, void *v)
 {
-    if(!check_save((EditorWindow *)v))
+    EditorWindow *win = (EditorWindow *)v;
+    if(!check_save(win))
         return;                 //return if there are unsaved changes in currently-open file before opening another one
     //else. there are no changes, OK to proceed
-    EditorWindow *win = (EditorWindow *)v;
     if(!win)    return;         //return if window doesn't exist
 
-    char *newfile = fl_file_chooser("Open File", "*", filename);        //select a filename
+    char *newfile = fl_file_chooser("Open File", "*", win->filename);        //select a filename - user enters a filename to open
     if(newfile!= NULL)
         load_file(win, newfile, -1);
 }
@@ -238,7 +231,7 @@ void view_cb(Fl_Widget*, void *v)
         return;
     //else 
     //Create a new window to view another file at a slightly offset/different position than the original window
-    EditorWindow *new_win = new EditorWindow(win->w(), win->h(), filename);
+    EditorWindow *new_win = new EditorWindow(win->w(), win->h(), win->filename);
     new_win->position(win->x()+20, win->y()+20);
     new_win->show();
     set_title(new_win);  
@@ -265,31 +258,27 @@ void insert_cb(Fl_Widget *w, void *v)
 }
 
 void quit_cb(Fl_Widget*, void *v)
-{
-    if(changed_flag && !check_save((EditorWindow *)v))    //if there are unsaved changes in current file
-        return;                     //return
-    exit(0);                        //exit with exit code 0
+{   
+    EditorWindow *win = (EditorWindow *)v;
+    if(check_save(win))    //if there are unsaved changes in current file
+        exit(0);                        //exit with exit code 0
 }
 
 void save_as_cb(Fl_Widget*, void *v)
 {
     EditorWindow *win = (EditorWindow *)v;
-    char *newfile = fl_file_chooser("Save file as: ", "*", filename);       //select or give the name to store the file
+    char *newfile = fl_file_chooser("Save file as: ", "*", win->filename);       //select or give the name to store the file
     if(newfile != NULL)
         save_file(win, newfile);
 }
 
 void save_cb(Fl_Widget*, void *v)
 {
-    if(changed_flag)
-    {
-        if(filename[0] == '\0')     //if no name has been given to file, then save as ..
-            save_as_cb(nullptr, v);
-        else
-            save_file((EditorWindow *)v, filename);     //save file which has already been named and saved previously
-        return; 
-    }
-    save_file((EditorWindow *)v, filename);     //save file which has a name
+    EditorWindow *win = (EditorWindow *)v;
+    if(win->filename[0] == '\0')     //if no name has been given to file, then save as ..
+        save_as_cb(nullptr, v);
+    else
+        save_file(win, win->filename);     //save file which has already been named and saved previously
 }
 
 void replace_cb(Fl_Widget*, void *v)
@@ -316,20 +305,18 @@ void replace2_cb(Fl_Widget*, void *v)
     }
 
     int start_pos = win->editor->insert_position(); //get the current cursor
-    int found_pos = textbuf->search_forward(start_pos, find, &start_pos);      
+    int found_pos = win->textbuf->search_forward(start_pos, find, &start_pos);      
     if(found_pos >= 0)
     {
-        textbuf->select(start_pos, start_pos+strlen(find));
-        textbuf->remove_selection();
-        textbuf->insert(start_pos, replace);        //insert replace string at start index of old value
+        win->textbuf->select(start_pos, start_pos+strlen(find));
+        win->textbuf->remove_selection();
+        win->textbuf->insert(start_pos, replace);        //insert replace string at start index of old value
         win->editor->insert_position(start_pos+strlen(replace));        //insert the cursor into the editor
         win->editor->show_insert_position();
-        changed_flag = 1;
+        win->changed_flag = 1;
     }
     else
-    {
         fl_alert("'%s' not found", find);
-    }
 }
 
 void replace_all_cb(Fl_Widget*, void *v)                //replaces all the occurences of a string
@@ -347,14 +334,14 @@ void replace_all_cb(Fl_Widget*, void *v)                //replaces all the occur
     int times_replaced = 0;
     int start_pos = 0;
 
-    while(textbuf->search_forward(start_pos, find, &start_pos) >= 0)
+    while(win->textbuf->search_forward(start_pos, find, &start_pos) >= 0)
     {
-        textbuf->select(start_pos, start_pos+strlen(find));
-        textbuf->remove_selection();
-        textbuf->insert(start_pos, replace);
+        win->textbuf->select(start_pos, start_pos+strlen(find));
+        win->textbuf->remove_selection();
+        win->textbuf->insert(start_pos, replace);
         times_replaced++;
         start_pos+=strlen(replace);             //update the position of cursor after replaceing the string
-        changed_flag = 1;
+        win->changed_flag = 1;
     }
 
     if(times_replaced == 0)
@@ -427,7 +414,7 @@ void LineNumberWidget::draw() {
 
 EditorWindow::EditorWindow(int w, int h, const char *title): Fl_Double_Window(w, h, title) {
     begin(); // Start adding to this window
-
+    
     Fl_Menu_Bar *menubar = new Fl_Menu_Bar(0, 0, w, 25);
     Fl_Menu_Item menuitems[] = {
       { "&File",              0, 0, 0, FL_SUBMENU },
@@ -506,11 +493,10 @@ EditorWindow::EditorWindow(int w, int h, const char *title): Fl_Double_Window(w,
 
 int main(int argc, char **argv)
 {
-    textbuf = new Fl_Text_Buffer();
-
     EditorWindow *window = new EditorWindow(800, 600, "Text Editor");
+    window->textbuf = new Fl_Text_Buffer();
     window->show(argc, argv);
-    textbuf->add_modify_callback(changed_cb, NULL);     //changed_cb is triggered/called whenever the text-buffe is modified
+    window->textbuf->add_modify_callback(changed_cb, NULL);     //changed_cb is triggered/called whenever the text-buffe is modified
     set_title(window);
 
     if(argc > 1)        //if more than 1 cmd-line argument is given
