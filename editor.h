@@ -49,27 +49,27 @@ class EditorWindow: public Fl_Double_Window
 
 //Function prototypes
 void changed_cb(int pos, int nInserted, int nDeleted, int nRestyled, const char *deletedText, void *v);
-void copy_cb(Fl_Widget*, void*);
-void paste_cb(Fl_Widget*, void*);
-void cut_cb(Fl_Widget*, void*);
+void copy_cb(Fl_Widget*, void* v);
+void paste_cb(Fl_Widget*, void* v);
+void cut_cb(Fl_Widget*, void* v);
 void delete_cb(Fl_Widget*, void *v);
-void find_cb(Fl_Widget*, void*);
-void find2_cb(Fl_Widget*, void*);
-void new_cb(Fl_Widget*, void*);
-void open_cb(Fl_Widget*, void*);
+void find_cb(Fl_Widget*, void* v);
+void find2_cb(Fl_Widget* w, void* v);
+void new_cb(Fl_Widget*, void* v);
+void open_cb(Fl_Widget*, void* v);
 void quit_cb(Fl_Widget*, void* v); // CORRECTED: Added void* for consistency
 void save_cb(Fl_Widget*, void* v);
 void save_as_cb(Fl_Widget*, void* v);
-void replace_cb(Fl_Widget*, void*);
-void replace2_cb(Fl_Widget*, void*);
-void replace_all_cb(Fl_Widget*, void*);
-void cancel_replace_cb(Fl_Widget*, void*);
+void replace_cb(Fl_Widget*, void* v);
+void replace2_cb(Fl_Widget*, void* v);
+void replace_all_cb(Fl_Widget*, void* v);
+void cancel_replace_cb(Fl_Widget*, void* v);
 int check_save(EditorWindow *win); // CORRECTED: Pass window pointer to save
 void load_file(EditorWindow* win, char *newfile, int ipos = -1);
 void save_file(EditorWindow* win, char *newfile);
 void set_title(EditorWindow *win);
 void insert_cb(Fl_Widget*, void*);
-void view_cb(Fl_Widget*, void*);
+void view_cb(Fl_Widget*, void* v);
 void close_cb(Fl_Widget*, void*);
 void undo_cb(Fl_Widget*, void *v);
 
