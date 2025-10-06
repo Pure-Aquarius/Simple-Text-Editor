@@ -14,6 +14,7 @@
 #include <FL/Fl_File_Chooser.H>
 #include <FL/Fl_Menu_Bar.H>
 #include <FL/fl_ask.H>
+#include <FL/fl_draw.H>
 using namespace std;
 
 // GLOBAL VARIABLES have been removed
@@ -175,7 +176,7 @@ void find2_cb(Fl_Widget*, void *v)
         return; //return if window, editor or text buffer doesn't exist
 
     //else, find the next occurrence of the search text
-    if(win->search_text == '\0') //if no search text given 
+    if(win->search_text[0] == '\0') //if no search text given 
     {
         find_cb(win, v); //open the find dialog to get the search text
         return;
@@ -365,7 +366,7 @@ LineNumberWidget::LineNumberWidget(int x, int y, int w, int h, Fl_Text_Editor *e
 
 void LineNumberWidget::draw() {
     // Standard widget drawing setup
-    Fl_Widget::draw();
+    draw_box();
     fl_font(FL_COURIER, editor->textsize());
     fl_color(FL_GRAY);
 
@@ -416,7 +417,7 @@ EditorWindow::EditorWindow(int w, int h, const char *title): Fl_Double_Window(w,
     begin(); // Start adding to this window
     
     Fl_Menu_Bar *menubar = new Fl_Menu_Bar(0, 0, w, 25);
-    Fl_Menu_Item menuitems[] = {
+    static Fl_Menu_Item menuitems[] = {
       { "&File",              0, 0, 0, FL_SUBMENU },
         { "&New File",        FL_COMMAND + 'n', (Fl_Callback *)new_cb, this },
         { "&Open File...",    FL_COMMAND + 'o', (Fl_Callback *)open_cb, this },
@@ -454,6 +455,7 @@ EditorWindow::EditorWindow(int w, int h, const char *title): Fl_Double_Window(w,
 
     //create a text editor
     editor = new Fl_Text_Editor(lineNoWidg_width, menu_bar_ht, w-lineNoWidg_width, h-menu_bar_ht);
+    textbuf = new Fl_Text_Buffer();
     editor->buffer(textbuf);        //connect the editor to its text editor
     editor->textfont(FL_COURIER);
     editor->textsize(15);
@@ -467,7 +469,6 @@ EditorWindow::EditorWindow(int w, int h, const char *title): Fl_Double_Window(w,
         ((LineNumberWidget*)v)->redraw();
     }, LineNoWidget);
 
-    end();      //stop adding to this window
     resizable(editor); //make the text editor resizable with the window
 
     //Create a dialog box for the replace functionality
@@ -486,17 +487,20 @@ EditorWindow::EditorWindow(int w, int h, const char *title): Fl_Double_Window(w,
     replace_nxt_btn->callback((Fl_Callback *)replace2_cb, this);
     cancel_replace_btn->callback((Fl_Callback *)cancel_replace_cb, this);
 
-    this->end();
+    end();
 }
 
+EditorWindow::~EditorWindow()
+{
+    delete textbuf;         //delete the text buffer
+}
 // ========== MAIN FUNCTION ==========
 
 int main(int argc, char **argv)
 {
     EditorWindow *window = new EditorWindow(800, 600, "Text Editor");
-    window->textbuf = new Fl_Text_Buffer();
     window->show(argc, argv);
-    window->textbuf->add_modify_callback(changed_cb, NULL);     //changed_cb is triggered/called whenever the text-buffe is modified
+    window->textbuf->add_modify_callback(changed_cb, window);     //changed_cb is triggered/called whenever the text-buffer is modified
     set_title(window);
 
     if(argc > 1)        //if more than 1 cmd-line argument is given

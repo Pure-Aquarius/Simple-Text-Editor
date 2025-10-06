@@ -1,28 +1,28 @@
-#Define the compiler
-CXX = g++	
+# A robust Makefile for the FLTK project
 
-#Compiler flags to get fltk compile and link flags using fltk-config utility
-# The -g flag adds debugging symbols, which is very usef
+# Compiler and flags
+CXX = g++
 CXXFLAGS = `fltk-config --cxxflags` -g -Wall
-#Linker flags to get fltk link flags using fltk-config utility
 LDFLAGS = `fltk-config --ldflags`
 
-#Target executable name and source file
+# Target executable
 TARGET = editor
-#Name of the source file
-SOURCES = editor.cpp
 
-#Default Build target
+# Source and object files
+SOURCES = editor.cpp
+OBJECTS = $(SOURCES:.cpp=.o)
+
+# Default rule
 all: $(TARGET)
 
-#Rule to build the target executable from source file
-$(TARGET): $(SOURCES)
-#Compile and link the source file to create the executable
-	$(CXX) $(CXXFLAGS) $(SOURCES) -o $(TARGET) $(LDFLAGS) 
+# Linking rule
+$(TARGET): $(OBJECTS)
+	$(CXX) $(OBJECTS) -o $(TARGET) $(LDFLAGS)
 
-#Rule to clean up the built files
+# Compilation rule
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Clean rule
 clean:
-	rm -f $(TARGET)
-
-#Phony targets (not real files)
-.PHONY: all clean
+	rm -f $(TARGET) $(OBJECTS)
